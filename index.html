@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>수여동사 냠냠 지렁이 게임 | 3분 챌린지</title>
+  
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-to select-none overflow-hidden m-0 p-0 w-screen h-screen">
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas" class="absolute inset-0 w-full h-full block z-0"></canvas>
+
+  <!-- TOP HUD: 상단 컨트롤 바 및 정보 패널 -->
+  <header class="absolute top-0 left-0 right-0 px-4 md:px-6 py-3 pointer-events-none z-10 flex flex-wrap justify-between items-center gap-3">
+    
+    <!-- 1. 좌측 상단: 미션 알림 카드 (30초 타이머) -->
+    <div id="missionBox" class="pointer-events-auto flex items-center gap-3 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-white/80">
+      <div class="flex items-center gap-2">
+        <span class="text-xs md:text-sm font-black px-2 py-0.5 rounded-lg bg-slate-800 text-white uppercase">미션</span>
+        <span class="text-base md:text-xl font-black text-slate-800" id="missionText">
+          <span id="prepHighlight" class="text-sky-600 underline decoration-sky-400 decoration-4">[ to ]</span> 동사 먹기
+        </span>
+      </div>
+
+      <!-- 30초 미션 전환 타이머 -->
+      <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-300">
+        <i class="fa-regular fa-clock text-sky-500 text-xs"></i>
+        <span id="missionTimeText" class="text-xs font-black text-slate-700 font-mono">30s</span>
+        <div class="w-12 md:w-16 bg-slate-200 h-2 rounded-full overflow-hidden ml-1">
+          <div id="missionProgressBar" class="h-full bg-sky-500 transition-all duration-100 w-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 중앙 상단: 3분 제한시간 시계 & 컨트롤 버튼 -->
+    <div id="controlPanel" class="pointer-events-auto flex items-center gap-2.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-2xl shadow-lg border border-white/80">
+      
+      <!-- 3분 카운트다운 타이머 전광판 -->
+      <div id="timerContainer" class="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 px-3.5 py-1.5 rounded-xl border border-indigo-200">
+        <i class="fa-solid fa-stopwatch text-indigo-600 text-base animate-pulse"></i>
+        <div class="text-left">
+          <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block leading-none">제한시간</span>
+          <span id="matchClock" class="font-mono text-lg md:text-xl font-black text-indigo-700 leading-tight">03:00</span>
+        </div>
+      </div>
+
+      <div class="h-7 w-px bg-slate-200"></div>
+
+      <!-- 시작 / 일시정지 버튼 -->
+      <button id="startBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs md:text-sm shadow-md transition-all active:scale-95">
+        <i class="fa-solid fa-play"></i>
+        <span>시작</span>
+      </button>
+
+      <button id="pauseBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs md:text-sm shadow-md transition-all active:scale-95">
+        <i class="fa-solid fa-pause"></i>
+        <span>일시정지</span>
+      </button>
+
+      <!-- 처음부터 리셋 버튼 -->
+      <button id="resetBtn" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs shadow-sm transition-all active:scale-95" title="3분 타이머와 점수를 처음으로">
+        <i class="fa-solid fa-rotate-right text-rose-500"></i>
+        <span>처음부터</span>
+      </button>
+    </div>
+
+    <!-- 3. 우측 상단: 점수 & 상태 표시 -->
+    <div class="pointer-events-auto flex items-center gap-2.5">
+      <div id="scoreBox" class="bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-lg border border-white/80 flex items-center gap-4">
+        <div>
+          <span class="text-[10px] font-black text-slate-400 block tracking-wider">SCORE</span>
+          <span class="text-xl md:text-2xl font-black text-amber-500 tracking-tight" id="scoreDisplay">0점</span>
+        </div>
+        <div class="h-7 w-px bg-slate-200"></div>
+        <div>
+          <span class="text-[10px] font-black text-slate-400 block tracking-wider">지렁이 길이</span>
+          <span class="text-sm md:text-base font-bold text-amber-800 font-mono" id="lengthDisplay">22 마디</span>
+        </div>
+      </div>
+
+      <!-- 소리 및 도감 버튼 -->
+      <button id="soundBtn" class="bg-white/95 hover:bg-white text-slate-700 w-10 h-10 rounded-2xl shadow-lg flex items-center justify-center transition-all active:scale-95 border border-white/80" title="소리 켜기/끄기">
+        <i id="soundIcon" class="fa-solid fa-volume-high text-sky-500 text-sm"></i>
+      </button>
+
+      <button id="guideBtn" class="bg-white/95 hover:bg-white text-slate-700 w-10 h-10 rounded-2xl shadow-lg flex items-center justify-center transition-all active:scale-95 border border-white/80" title="수여동사 문법 도감">
+        <i class="fa-solid fa-book-open text-emerald-500 text-sm"></i>
+      </button>
+    </div>
+
+  </header>
+
+  <!-- Big Mission Alert Popup Banner (30초마다 등장) -->
+  <div id="missionAlertBanner" class="pointer-events-none fixed top-20 left-1/2 -translate-x-1/2 z-20 opacity-0 scale-90 transition-all duration-300 flex items-center gap-3 px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur-lg border border-white/40">
+    <i class="fa-solid fa-bolt text-amber-300 text-xl animate-bounce"></i>
+    <div class="text-center">
+      <div class="text-[11px] uppercase font-extrabold tracking-wider text-slate-100">미션 변경! (30초간 진행)</div>
+      <div id="bannerText" class="text-lg md:text-xl font-black text-white drop-shadow-md">
+        [ to ] 전치사 동사를 찾아라!
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Tip Banner -->
+  <div class="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+    <div class="bg-slate-900/60 backdrop-blur-md px-4 py-1.5 rounded-full text-white/95 text-xs font-semibold shadow-md flex items-center gap-2 border border-white/10">
+      <i class="fa-solid fa-arrow-pointer text-amber-300 animate-pulse"></i>
+      <span>마우스를 움직여 지렁이를 조종하세요! 머리, 몸통, 꼬리 모두 닿으면 먹을 수 있어요.</span>
+    </div>
+  </div>
+
+  <!-- PAUSED OVERLAY (일시정지 상태 안내) -->
+  <div id="pausedOverlay" class="fixed inset-0 z-30 hidden pointer-events-auto flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 md:p-8 text-center shadow-2xl border border-white/40 max-w-sm w-full mx-4 animate-pop">
+      <div class="w-16 h-16 mx-auto mb-3 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-2xl font-bold">
+        <i class="fa-solid fa-pause"></i>
+      </div>
+      <h3 class="text-2xl font-black text-slate-800 mb-1">일시정지 됨</h3>
+      <p class="text-xs text-slate-500 mb-4">현재 점수를 확인하고 휴식하거나 발표하세요!</p>
+      
+      <div class="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-200">
+        <div class="text-xs text-slate-400 font-bold mb-1">현재 기록</div>
+        <div id="pauseScoreText" class="text-3xl font-black text-amber-500">0점</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="resumeModalBtn" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 text-sm flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-play"></i>
+          <span>계속하기</span>
+        </button>
+        <button id="resetModalBtn" class="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 text-sm flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-rotate-right"></i>
+          <span>처음부터</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3분 종료 시 등장하는 모달 (다시하기 버튼 제공) -->
+  <div id="matchEndModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl shadow-2xl border border-white/40 max-w-md w-full p-6 md:p-8 text-center relative overflow-hidden animate-pop">
+      <div class="w-20 h-20 mx-auto mb-3 bg-amber-100 rounded-full flex items-center justify-center shadow-inner relative text-amber-600 text-4xl">
+        🏆
+      </div>
+      <h2 class="text-2xl md:text-3xl font-black text-slate-800 mb-1">3분 타임어택 종료!</h2>
+      <p class="text-xs md:text-sm text-slate-500 mb-5">3분간의 수여동사 챌린지가 끝났습니다. 멋진 실력이에요!</p>
+      
+      <div class="bg-gradient-to-b from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 mb-6 shadow-sm">
+        <div class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">최종 획득 점수</div>
+        <div id="finalScoreDisplay" class="text-4xl md:text-5xl font-black text-amber-600 mb-2">0점</div>
+        <div id="finalLengthDisplay" class="text-xs font-bold text-slate-600">최종 지렁이 길이: 22 마디</div>
+      </div>
+
+      <!-- 다시하기 버튼 -->
+      <button id="playAgainBtn" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-2xl shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95 text-base flex items-center justify-center gap-2">
+        <i class="fa-solid fa-rotate-right text-lg"></i>
+        <span>3분 도전 다시하기</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- GRAMMAR GUIDE MODAL -->
+  <div id="guideModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl shadow-2xl border border-white/20 max-w-2xl w-full p-6 md:p-8 relative max-h-[90vh] overflow-y-auto">
+      <button id="closeGuideBtn" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+          <h2 class="text-xl md:text-2xl font-black text-slate-800">중1 수여동사 핵심 정리</h2>
+          <p class="text-xs text-slate-500">4형식(주어+동사+간.목+직.목) ➔ 3형식(주어+동사+직.목 + <span class="text-amber-600 font-bold">전치사</span> + 간.목)</p>
+        </div>
+      </div>
+
+      <div class="space-y-4 text-xs md:text-sm">
+        <!-- TO -->
+        <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4">
+          <div class="flex items-center gap-2 font-black text-sky-800 text-base mb-1.5">
+            <span class="px-2.5 py-0.5 bg-sky-500 text-white rounded-lg text-xs">전치사 to</span>
+            <span>방향과 전달 (~에게 주다/보내다)</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2 font-mono font-bold">
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">give (주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">send (보내다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">show (보여주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">teach (가르치다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">tell (말하다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">lend (빌려주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">write (써주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">pass (건네다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-sky-100 text-sky-800">bring (가져오다)</span>
+          </div>
+          <div class="text-[11px] text-slate-500 italic bg-white/70 p-2 rounded-lg">
+            예문: She gave a present <strong>to</strong> me. (그녀는 나에게 선물을 주었다.)
+          </div>
+        </div>
+
+        <!-- FOR -->
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div class="flex items-center gap-2 font-black text-amber-800 text-base mb-1.5">
+            <span class="px-2.5 py-0.5 bg-amber-500 text-white rounded-lg text-xs">전치사 for</span>
+            <span>정성과 노력 (~를 위하여 해주다)</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2 font-mono font-bold">
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">make (만들어주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">buy (사주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">cook (요리해주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">get (구해주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">find (찾아주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">build (지어주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">bake (구워주다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-amber-100 text-amber-800">choose (골라주다)</span>
+          </div>
+          <div class="text-[11px] text-slate-500 italic bg-white/70 p-2 rounded-lg">
+            예문: Mom made a delicious cake <strong>for</strong> us. (엄마는 우리를 위해 케이크를 만들어주셨다.)
+          </div>
+        </div>
+
+        <!-- OF -->
+        <div class="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+          <div class="flex items-center gap-2 font-black text-purple-800 text-base mb-1.5">
+            <span class="px-2.5 py-0.5 bg-purple-500 text-white rounded-lg text-xs">전치사 of</span>
+            <span>요청과 질문 (~에게 묻다/부탁하다)</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2 font-mono font-bold">
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-purple-100 text-purple-800 ring-2 ring-purple-400">ask (부탁하다, 묻다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-purple-100 text-purple-800">beg (간청하다)</span>
+            <span class="px-2 py-1 bg-white rounded-md shadow-sm border border-purple-100 text-purple-800">inquire (문의하다)</span>
+          </div>
+          <div class="text-[11px] text-slate-500 italic bg-white/70 p-2 rounded-lg">
+            예문: May I ask a favor <strong>of</strong> you? (제가 당신에게 부탁 하나를 드려도 될까요?)
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 text-center">
+        <button id="understandBtn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 text-sm">
+          확인하고 게임으로 돌아가기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Script -->
+  <script src="script.js"></script>
+</body>
+</html>
